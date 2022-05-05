@@ -107,11 +107,13 @@ $(BLDDIRS):
 
 objects: $(LD_LIST)
 
+conf: $(CONFH) $(CONFH)
+
 $(CONFH): $(CONFFILE) $(CONFPGM)
 	@echo making $(CONFH)
 	@make configure
 
-$(CONFC): $(CONFFILE) $(CONFPGM)
+$(CONFH): $(CONFFILE) $(CONFPGM)
 	@echo making $(CONFC)
 	@make configure
 

@@ -4,6 +4,11 @@
 
 local	int newpid();
 
+extern void ret_k2u();
+extern void ltss(int);
+
+extern struct TaskStateSegment TSS;
+
 /*------------------------------------------------------------------------
  *  create  -  Create a process to start running a function on x86
  *------------------------------------------------------------------------
@@ -34,6 +39,12 @@ pid32	create(
 		restore(mask);
 		return SYSERR;
 	}
+	
+	uint32		*kel_saddr;		/* Kernel Stack address		*/
+	if ( ((kel_saddr = (uint32 *)getstk(ssize)) == (uint32 *)SYSERR) ) {
+		restore(mask);
+		return SYSERR;
+	}
 
 	prcount++;
 	prptr = &proctab[pid];
@@ -43,6 +54,8 @@ pid32	create(
 	prptr->prprio = priority;
 	prptr->prstkbase = (char *)saddr;
 	prptr->prstklen = ssize;
+	prptr->kel_prstkbase = (char *)kel_saddr;
+	// prptr->pr_userstklen = ssize;
 	prptr->prname[PNMLEN-1] = NULLCH;
 	for (i=0 ; i<PNMLEN-1 && (prptr->prname[i]=name[i])!=NULLCH; i++)
 		;
@@ -55,26 +68,83 @@ pid32	create(
 	prptr->prdesc[1] = CONSOLE;
 	prptr->prdesc[2] = CONSOLE;
 
-	/* Initialize stack as if the process was called		*/
+	/* Initialize User stack as if the process was called		*/
+	// this is actually the address of user stack, we name it kernel for future replacing of kel_prstkptr and prstkptr
+
+	*kel_saddr = STACKMAGIC;
+	kel_saddr = (uint32)kel_saddr;
+
+	/* Push arguments */
+	a = (uint32 *)(&nargs + 1);	/* Start of args		*/
+	a += nargs - 1;			/* Last argument		*/
+	for ( ; nargs > 0 ; nargs--)	/* Machine dependent; copy args	*/
+		*--kel_saddr = *a--;	/* onto created process's stack	*/
+	*--kel_saddr = (long)INITRET;	/* Push on return address	*/
+
+	/* Initialize kernel stack as if the process was called		*/
 
 	*saddr = STACKMAGIC;
 	savsp = (uint32)saddr;
 
 	/* Push arguments */
 	a = (uint32 *)(&nargs + 1);	/* Start of args		*/
-	a += nargs -1;			/* Last argument		*/
+	a += nargs - 1;			/* Last argument		*/
 	for ( ; nargs > 0 ; nargs--)	/* Machine dependent; copy args	*/
 		*--saddr = *a--;	/* onto created process's stack	*/
 	*--saddr = (long)INITRET;	/* Push on return address	*/
+	// TSS.ss0 = (0x3 << 3);
+	uint32 *after_ret_k2u = saddr;
+	// uint32 *esp_for_iret = saddr;
+
+	// push for regs for iret
+	// SS
+	*--saddr = (long)0x33;
+	// esp
+	*--saddr = (long)(unsigned long) (prptr->kel_prstkptr = (char *)kel_saddr);
+	// *--saddr = (long)kel_saddr;
+	// eflags
+	*--saddr = (long)0x00000200;
+	// CS
+	*--saddr = (long)0x23;
+	// funcaddr
+	*--saddr = (long)funcaddr;
+
+	// *esp_for_iret = saddr;
+	// DS
+	*--saddr = (long)0x2b;
+	// ES
+	*--saddr = (long)0x2b;
+	// FS
+	*--saddr = (long)0x2b;
+	// GS
+	*--saddr = (long)0x2b;
+	// *pushsp = esp_for_iret;
+
+	// (int*)(esp)+14
+	// kel_prstkptr(user)
+	*--saddr = (long)((prptr->kel_prstkptr));
+	// addr of prstkptr
+	*--saddr = (long)(&(prptr->prstkptr));
+	// kel_prstkbase(user)
+	*--saddr = (long)((prptr->kel_prstkbase));
+	// addr of prstkbase
+	*--saddr = (long)(&(prptr->prstkbase));
+
 
 	/* The following entries on the stack must match what ctxsw	*/
 	/*   expects a saved process state to contain: ret address,	*/
 	/*   ebp, interrupt mask, flags, registers, and an old SP	*/
 
-	*--saddr = (long)funcaddr;	/* Make the stack look like it's*/
+	// *--saddr = (long)funcaddr;	/* Make the stack look like it's*/
 					/*   half-way through a call to	*/
 					/*   ctxsw that "returns" to the*/
 					/*   new process		*/
+
+	// we make the prevous funcadder to ret_k2u
+	// (int*)(esp)+10
+	*--saddr = (long)ret_k2u;
+	
+
 	*--saddr = savsp;		/* This will be register ebp	*/
 					/*   for process exit		*/
 	savsp = (uint32) saddr;		/* Start of frame for ctxsw	*/
@@ -83,6 +153,7 @@ pid32	create(
 
 	/* Basically, the following emulates an x86 "pushal" instruction*/
 
+	// (int*)(esp)+7
 	*--saddr = 0;			/* %eax */
 	*--saddr = 0;			/* %ecx */
 	*--saddr = 0;			/* %edx */
@@ -93,6 +164,9 @@ pid32	create(
 	*--saddr = 0;			/* %esi */
 	*--saddr = 0;			/* %edi */
 	*pushsp = (unsigned long) (prptr->prstkptr = (char *)saddr);
+	prptr->kel_prstkbase = prptr->prstkbase;
+	prptr->kel_prstkptr = prptr->prstkptr;
+	// ltss(0x7 << 3);
 	restore(mask);
 	return pid;
 }
@@ -116,6 +190,7 @@ local	pid32	newpid(void)
 		} else {
 			nextpid++;
 		}
-	}kprintf("newpid error\n");
+	}
+	kprintf("newpid error\n");
 	return (pid32) SYSERR;
 }

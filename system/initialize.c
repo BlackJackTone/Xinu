@@ -44,6 +44,9 @@ pid32	currpid;		/* ID of currently executing process	*/
  *------------------------------------------------------------------------
  */
 
+// LTSS
+extern void ltss(int x);
+
 void	nulluser()
 {	
 	struct	memblk	*memptr;	/* Ptr to memory block		*/
@@ -52,6 +55,8 @@ void	nulluser()
 	/* Initialize the system */
 
 	sysinit();
+	
+	ltss(0x7 << 3);
 
 	/* Output Xinu memory layout */
 	free_mem = 0;
@@ -108,7 +113,7 @@ local process	startup(void)
 {
 	/* Create a process to execute function main() */
 
-	syscall_resume(syscall_create((void *)main, INITPRIO,
+	syscall_resume(syscall_create((void *)main, INITSTK, INITPRIO,
 					"Main process", 0, NULL));
 
 	/* Startup process exits at this point */
@@ -172,9 +177,9 @@ static	void	sysinit()
 	prptr->prstate = PR_CURR;
 	prptr->prprio = 0;
 	strncpy(prptr->prname, "prnull", 7);
-	prptr->prstkbase = getstk(NULLSTK);
+	prptr->prstkbase = prptr->kel_prstkbase = getstk(NULLSTK);
 	prptr->prstklen = NULLSTK;
-	prptr->prstkptr = 0;
+	prptr->prstkptr = prptr->kel_prstkptr = 0;
 	currpid = NULLPROC;
 	
 	/* Initialize semaphores */

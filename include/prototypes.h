@@ -125,6 +125,21 @@ extern	devcall	ioerr(void);
 /* in file ionull.c */
 extern	devcall	ionull(void);
 
+/* in file addargs.c */
+extern	status	addargs(
+	  pid32		pid,		/* ID of process to use		*/
+	  int32		ntok,		/* Count of arguments		*/
+	  int32		tok[],		/* Index of tokens in tokbuf	*/
+	  int32		tlen,		/* Length of data in tokbuf	*/
+	  char		*tokbuf,	/* Array of null-term. tokens	*/
+	  void 		*dummy		/* Dummy argument that was	*/
+					/*   used at creation and must	*/
+					/*   be replaced by a pointer	*/
+					/*   to an argument vector	*/
+	);
+#define syscall_addargs(...) \
+		do_generic_syscall(syscall, SYSCALL_ADDARGS, __VA_ARGS__)
+
 /* in file kill.c */
 extern	syscall	kill(pid32);
 #define syscall_kill(...) \

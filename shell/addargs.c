@@ -48,7 +48,10 @@ status	addargs(
 	/*	args array will be stored followed by the argument	*/
 	/*	strings							*/
 	
-	aloc = (uint32) (prptr->prstkbase
+	// aloc = (uint32) (prptr->prstkbase
+		// - prptr->prstklen + sizeof(uint32));
+	// identify the base of user_stack
+	aloc = (uint32) ( ((char*)( *(((int*)prptr->prstkptr)+12) ))
 		- prptr->prstklen + sizeof(uint32));
 	argloc = (uint32*) ((aloc + 3) & ~0x3);	/* round multiple of 4	*/
 
@@ -73,9 +76,11 @@ status	addargs(
 	memcpy(aptr, tokbuf, tlen);
 
 	/* Find the second argument in process's stack */
-
-	for (search = (uint32 *)prptr->prstkptr;
-	     search < (uint32 *)prptr->prstkbase; search++) {
+// 	for (search = (uint32 *)prptr->prstkptr;
+// 	     search < (uint32 *)prptr->prstkbase; search++) {
+// identify the stkptr of user stack
+	for (search = (uint32 *)((char*)( *(((int*)prptr->prstkptr)+14) ));
+	     search < (uint32 *)((char*)( *(((int*)prptr->prstkptr)+12) )); search++) {
 
 		/* If found, replace with the address of the args vector*/
 

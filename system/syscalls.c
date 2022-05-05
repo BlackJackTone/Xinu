@@ -18,6 +18,7 @@ const void *syscalls[] = {
 	&control,		// 12
 	&kill,			// 13
 	&getpid,		// 14
+	&addargs,		// 15
 	NULL,
 };
 
@@ -31,8 +32,26 @@ uint32 do_syscall(uint32 id, uint32 args_count, ...) {
 	uint32 *ptr_return_value = return_value;
 	args_count;
 	uint32 *args_array = 1 + &args_count;
+	// args_array = args_array + args_count - 1;
+	void *syscall_addr = syscalls[id];
 
-	// Your code here ...
+	__asm__ (
+		"pushl %%edi\n\t"
+		"pushl %%esi\n\t"
+		"pushl %%edx\n\t"
+		"pushl %%ecx\n\t"
+		"movl %[ret_val_add], %%edi\n\t"
+		"movl %[arg_cnt], %%esi\n\t"
+		"movl %[arg_start], %%edx\n\t"
+		"movl %[call_add], %%ecx\n\t"
+		"int $0x30\n\t"
+		"popl %%ecx\n\t"
+		"popl %%edx\n\t"
+		"popl %%esi\n\t"
+		"popl %%edi\n\t"
+		:
+		: [ret_val_add] "r" (&return_value), [arg_cnt] "r" (args_count), [arg_start] "r" (args_array), [call_add] "r" (syscall_addr)
+	);
 
 	return return_value;
 }

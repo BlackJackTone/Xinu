@@ -4,6 +4,10 @@
 
 struct	defer	Defer;
 
+extern struct TaskStateSegment TSS;
+
+extern void ltss(int);
+
 /*------------------------------------------------------------------------
  *  resched  -  Reschedule processor to highest priority eligible process
  *------------------------------------------------------------------------
@@ -41,7 +45,10 @@ void	resched(void)		/* Assumes interrupts are disabled	*/
 	ptnew = &proctab[currpid];
 	ptnew->prstate = PR_CURR;
 	preempt = QUANTUM;		/* Reset time slice for process	*/
+	ptold->kel_prstkptr = TSS.esp0;
+	TSS.esp0 = ptnew->kel_prstkptr;
 	ctxsw(&ptold->prstkptr, &ptnew->prstkptr);
+	// ctxsw(&ptold->user_prstkptr, &ptnew->user_prstkptr);
 
 	/* Old process returns here when resumed */
 

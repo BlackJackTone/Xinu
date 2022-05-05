@@ -470,7 +470,60 @@ _Xint46:
 	pushl	$46
 	jmp	Xtrap
 
+	.globl _Xint48
+_Xint48:
+	pushl	%ds
+	pushl	%es
+	pushl	%fs
+	pushl	%gs
 
+	pushl	%eax
+
+	movl	$0x10, %eax
+	movw	%ax, %ds
+	movw	%ax, %es
+	movw	%ax, %fs
+	movw	%ax, %gs
+
+	# preserve the arg_cnt, and ret_val_add
+	pushl	%ebx
+	movl 	%esi, %ebx
+	pushl	%ebp
+	movl	%edi, %ebp
+
+	jmp		_Xint48_check_arg_remain
+_Xint48_push_arg:
+	decl	%esi
+	movl	(%edx, %esi, 4), %eax
+	pushl	%eax
+_Xint48_check_arg_remain:
+	cmpl	$0, %esi
+	jne		_Xint48_push_arg
+
+	# call function
+	call	%ecx
+
+	# store the result
+	movl	%eax, (%ebp)
+
+	# pop args
+	jmp		_Xint48_pop_arg_remain
+_Xint48_pop_arg:
+	decl	%ebx
+	popl	%eax
+_Xint48_pop_arg_remain:
+	cmpl	$0, %ebx
+	jne		_Xint48_pop_arg
+
+	popl	%ebp
+	popl	%ebx
+	popl	%eax
+
+	popl	%gs
+	popl	%fs
+	popl	%es
+	popl	%ds
+	iret
 
 /*------------------------------------------------------------------------
  * _Xint? - array of exception/interrupt entry points that are
@@ -528,3 +581,4 @@ defevec:
 	.long	_Xint45			/* available for ext. interrupt	*/
 	.long	_Xint46			/* available for ext. interrupt	*/
 	.long	spurious_irq15
+	.long	_Xint48			/*our*/

@@ -33,7 +33,7 @@ uint16	girmask;
 
 #define	EOI	0x20		/* non-specific end of interrupt	*/
 
-#define NID		48	/* Number of interrupt descriptors	*/
+#define NID		49	/* Number of interrupt descriptors	*/
 #define	IGDT_TRAPG	15	/* Trap Gate				*/
 #define	IGDT_INTRG	0xe	/* Interrupt Gate			*/
 
@@ -104,6 +104,11 @@ int32	set_evec(uint32 xnum, uint32 handler)
 	pidt->igd_dpl = 0;
 	pidt->igd_present = 1;
 	pidt->igd_hoffset = handler >> 16;
+
+	if (xnum == 48)
+	{
+		pidt->igd_dpl = 3;
+	}
 
 	if (xnum > 31 && xnum < 48) {
 		/* Enable the interrupt in the global IR mask */
